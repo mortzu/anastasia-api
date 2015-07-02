@@ -1,66 +1,66 @@
 #! /usr/bin/env python2
 
-# library for system functions
+# 
 import sys
 
-# library for filesystem functions
+# 
 import os
 
-# library for IP sockets
 import socket
 
 """ append directory with
     virtualization to path """
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + '/Virtualizations/')
 
-# module which parses commandline arguments
+# Module which parses commandline arguments
 import argparse
 
-# webserver library
+# Webserver library
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-# threading server
+# Threading server
 from SocketServer import ThreadingMixIn
 
-# parse URLs
+# Parse URLs
 from urlparse import urlparse, parse_qs
 
-# parse and create JSON
+# Parse and create JSON
 import json
 
-# client handler class
+# Client handler class
 class clientHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # default http code is 200
+        # Default HTTP code is 200
         http_code = 200
 
-        # no data received
+        # If no data received
         if not self.path:
-            # continue running
+            # Continue running
             result = {'type': 'fatal', 'message': 'Not found'}
             http_code = 404
         else:
-            # parsing URL parameters
+            # Parse URL parameters
             o = urlparse(self.path)
             tmp = parse_qs(o.query)
             """ remove [0] from parsed URL parameters
                 and parse arguments """
             get_data = dict([(key, value[0]) for (key, value) in tmp.iteritems()])
 
-            # dictionary for result
+            # Dictionary for result
             result = {}
 
-            # check for parameter action in GET request
+            # Check for parameter action in GET request
             if 'action' in get_data:
                 # make variables rechable
-                global VIRT_TYPE
                 global API_KEY
                 global LIBVIRT_URI
+                global SSH_CONSOLE
+                global VIRT_TYPE
 
                 # instanciate class of virtual servers
                 mod = __import__(VIRT_TYPE)
                 class_ = getattr(mod, VIRT_TYPE)
-                virt = class_(LIBVIRT_URI)
+                virt = class_(LIBVIRT_URI, SSH_CONSOLE)
 
                 # informations about all domains requested?
                 if get_data['action'] == 'get_domains':
@@ -78,8 +78,7 @@ class clientHandler(BaseHTTPRequestHandler):
                 result = {'type': 'fatal', 'message': 'Not found'}
                 http_code = 404
 
-        """ return HTTP status
-            200 is status for OK """
+        # return HTTP status
         self.send_response(http_code)
         self.send_header('Content-type', 'application/json')
         # end of headers
@@ -96,12 +95,14 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 if __name__ == '__main__':
     # instanciate argument parser
     parser = argparse.ArgumentParser()
-    # add argument to parser 
+    # add argument to parser
     parser.add_argument('--virtualization', action = 'store', help = 'Which virtualization is used', required = True)
-    # add argument to parser 
+    # add argument to parser
     parser.add_argument('--api-key', action = 'store', help = 'API key for authentication', required = True)
-    # add argument to parser 
+    # add argument to parser
     parser.add_argument('--libvirt-uri', action = 'store', help = 'URI for libvirt', default = 'qemu:///system')
+    # add argument to parser
+    parser.add_argument('--enable-ssh-console', action = 'store_true', help = 'Enable SSH console with OpenVZ')
     """ parse arguments and store
         them to arguments dict """
     results = parser.parse_args()
@@ -110,15 +111,17 @@ if __name__ == '__main__':
     VIRT_TYPE = results.virtualization
     API_KEY = results.api_key
     LIBVIRT_URI = results.libvirt_uri
+    SSH_CONSOLE = results.enable_ssh_console
 
-    """ try to import choosen virtualization class
-        if failed print error message """
+    """ Check if given virtualization
+        exists """
     try:
         __import__(VIRT_TYPE)
     except:
         print 'virt not found'
         sys.exit(1)
 
-    # start webserver
+    # Create Webserver
     server = ThreadingHTTPServer(('::', 65535), clientHandler)
+    # and run
     server.serve_forever()

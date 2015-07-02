@@ -2,6 +2,8 @@ import libvirt
 import xml.etree.ElementTree as ET
 
 class Libvirt:
+    conn = None
+
     states = {
         libvirt.VIR_DOMAIN_NOSTATE: 'no state',
         libvirt.VIR_DOMAIN_RUNNING: 'running',
@@ -12,25 +14,25 @@ class Libvirt:
         libvirt.VIR_DOMAIN_CRASHED: 'crashed',
     }
 
-    def __init__(self, libvirt_uri = None):
+    def __init__(self, libvirt_uri = None, enable_ssh_console = False):
         # connect to libvirt
-        conn = libvirt.open(libvirt_uri)
+        self.conn = libvirt.open(libvirt_uri)
 
     def get_domains(self):
         # dictionary for result
         result = {}
 
         # get hostname
-        result['hostname'] = conn.getHostname()
-        result['hypervisor'] = conn.getType()
-        result['uri'] = conn.getURI()
+        result['hostname'] = self.conn.getHostname()
+        result['hypervisor'] = self.conn.getType()
+        result['uri'] = self.conn.getURI()
 
         domlist = []
 
-        for id in conn.listDomainsID():
+        for id in self.conn.listDomainsID():
             domlist.append(self.conn.lookupByID(id))
 
-        for id in conn.listDefinedDomains():
+        for id in self.conn.listDefinedDomains():
             domlist.append(self.conn.lookupByName(id))
 
         for dom in domlist:
@@ -48,8 +50,9 @@ class Libvirt:
             else:
                 result[domain_name]['vcpu'] = 0
 
-            result[domain_name]['vnc_address'] = xml_root.find('./devices/graphics').get('listen')
-            result[domain_name]['vnc_port'] = xml_root.find('./devices/graphics').get('port')
+            result[domain_name]['console_type'] = 'VNC'
+            result[domain_name]['console_address'] = xml_root.find('./devices/graphics').get('listen')
+            result[domain_name]['console_port'] = xml_root.find('./devices/graphics').get('port')
 
         return result
 

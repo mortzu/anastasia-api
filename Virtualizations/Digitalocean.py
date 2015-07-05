@@ -23,11 +23,11 @@ class Digitalocean:
             domain_name = droplet.name
             result[domain_name] = {}
             result[domain_name]['id'] = droplet.id
-            result[domain_name]['state'] = droplet.status
+            result[domain_name]['state'] = True if droplet.status == 'active' else False
             result[domain_name]['name'] = droplet.name
-            result[domain_name]['memory'] = droplet.memory
+            result[domain_name]['memory'] = droplet.memory * 1024
             result[domain_name]['vcpu'] = droplet.vcpus
-            result[domain_name]['ip'] = droplet.ip_address
+            result[domain_name]['ip'] = [droplet.ip_address]
 
         return result
 

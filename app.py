@@ -1,9 +1,10 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python
 
-# 
+# Module for system functions
 import sys
 
-# 
+""" Module for operation system
+    functions """
 import os
 
 import socket
@@ -60,7 +61,15 @@ class clientHandler(BaseHTTPRequestHandler):
                 # instanciate class of virtual servers
                 mod = __import__(VIRT_TYPE)
                 class_ = getattr(mod, VIRT_TYPE)
-                virt = class_(LIBVIRT_URI, SSH_CONSOLE)
+
+                if VIRT_TYPE == 'Digitalocean':
+                    virt = class_(DIGITALOCEAN_TOKEN, SSH_CONSOLE)
+                elif VIRT_TYPE == 'SolusVM':
+                    virt = class_(SOLUSVM_KEY, SOLUSVM_HASH, SSH_CONSOLE)
+                elif VIRT_TYPE == 'OpenVZ':
+                    virt = class_()
+                else:
+                    virt = class_(LIBVIRT_URI, SSH_CONSOLE)
 
                 # informations about all domains requested?
                 if get_data['action'] == 'get_domains':
@@ -102,15 +111,24 @@ if __name__ == '__main__':
     # add argument to parser
     parser.add_argument('--libvirt-uri', action = 'store', help = 'URI for libvirt', default = 'qemu:///system')
     # add argument to parser
+    parser.add_argument('--digitalocean-token', action = 'store', help = 'API token')
+    # add argument to parser
+    parser.add_argument('--solusvm-key', action = 'store', help = 'API key')
+    # add argument to parser
+    parser.add_argument('--solusvm-hash', action = 'store', help = 'API hash')
+    # add argument to parser
     parser.add_argument('--enable-ssh-console', action = 'store_true', help = 'Enable SSH console with OpenVZ')
     """ parse arguments and store
         them to arguments dict """
     results = parser.parse_args()
 
-    # 
+    # Global variables
     VIRT_TYPE = results.virtualization
     API_KEY = results.api_key
     LIBVIRT_URI = results.libvirt_uri
+    DIGITALOCEAN_TOKEN = results.digitalocean_token
+    SOLUSVM_KEY = results.solusvm_key
+    SOLUSVM_HASH = results.solusvm_hash
     SSH_CONSOLE = results.enable_ssh_console
 
     """ Check if given virtualization

@@ -9,6 +9,8 @@ import os
 
 import socket
 
+import time
+
 """ append directory with
     virtualization to path """
 sys.path.append(os.path.dirname(os.path.realpath(__file__)) + '/Virtualizations/')

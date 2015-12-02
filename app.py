@@ -66,6 +66,8 @@ class clientHandler(BaseHTTPRequestHandler):
                     virt = class_(DIGITALOCEAN_TOKEN, SSH_CONSOLE)
                 elif VIRT_TYPE == 'SolusVM':
                     virt = class_(SOLUSVM_KEY, SOLUSVM_HASH, SSH_CONSOLE)
+                elif VIRT_TYPE == 'Scaleway':
+                    virt = class_(SCALEWAY_KEY, SSH_CONSOLE)
                 elif VIRT_TYPE == 'OpenVZ':
                     virt = class_()
                 else:
@@ -113,6 +115,8 @@ if __name__ == '__main__':
     # add argument to parser
     parser.add_argument('--digitalocean-token', action = 'store', help = 'API token')
     # add argument to parser
+    parser.add_argument('--scaleway-key', action = 'store', help = 'API key')
+    # add argument to parser
     parser.add_argument('--solusvm-key', action = 'store', help = 'API key')
     # add argument to parser
     parser.add_argument('--solusvm-hash', action = 'store', help = 'API hash')
@@ -127,6 +131,7 @@ if __name__ == '__main__':
     API_KEY = results.api_key
     LIBVIRT_URI = results.libvirt_uri
     DIGITALOCEAN_TOKEN = results.digitalocean_token
+    SCALEWAY_KEY = results.scaleway_key
     SOLUSVM_KEY = results.solusvm_key
     SOLUSVM_HASH = results.solusvm_hash
     SSH_CONSOLE = results.enable_ssh_console

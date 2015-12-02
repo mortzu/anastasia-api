@@ -82,6 +82,10 @@ class clientHandler(BaseHTTPRequestHandler):
                     virt.domain_shutdown(get_data['name'])
                 elif get_data['action'] == 'domain_reboot' and get_data['name'] != '':
                     virt.domain_reboot(get_data['name'])
+                elif get_data['action'] == 'domain_reset' and get_data['name'] != '':
+                    virt.domain_destroy(get_data['name'])
+                    time.sleep(2)
+                    virt.domain_start(get_data['name'])
                 else:
                     result = {'type': 'fatal', 'message': 'Not found'}
                     http_code = 404

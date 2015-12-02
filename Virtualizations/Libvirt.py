@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 
 class Libvirt:
     conn = None
+    debian_version = 8
 
     states = {
         libvirt.VIR_DOMAIN_NOSTATE: 'no state',
@@ -15,14 +16,20 @@ class Libvirt:
     }
 
     def __init__(self, libvirt_uri = None, enable_ssh_console = False):
-        # connect to libvirt
+        # Get debian version
+        try:
+            self.debian_version = int(open('/etc/debian_version', 'r').read().split('.')[0])
+        except:
+            pass
+
+        # Connect to libvirt
         self.conn = libvirt.open(libvirt_uri)
 
     def get_domains(self):
-        # dictionary for result
+        # Dictionary for result
         result = {}
 
-        # get hostname
+        # Get hostname
         result['hostname'] = self.conn.getHostname()
         result['hypervisor'] = self.conn.getType()
         result['uri'] = self.conn.getURI()
@@ -38,14 +45,24 @@ class Libvirt:
         for dom in domlist:
             infos = dom.info()
             domain_name = dom.name()
-            xml_root = ET.fromstring(dom.XMLDesc())
+
+            if self.debian_version < 8:
+                xml_root = ET.fromstring(dom.XMLDesc(0))
+            else:
+                xml_root = ET.fromstring(dom.XMLDesc())
+
             result[domain_name] = {}
             result[domain_name]['id'] = dom.ID()
-            result[domain_name]['state'] = self.states.get(dom.state()[0], dom.state()[0])
+
+            if self.debian_version < 8:
+                result[domain_name]['state'] = self.states.get(dom.state(0)[0], dom.state(0)[0])
+            else:
+                result[domain_name]['state'] = self.states.get(dom.state()[0], dom.state()[0])
+
             result[domain_name]['name'] = dom.name()
             result[domain_name]['memory'] = dom.maxMemory()
 
-            if dom.state()[0] == 1:
+            if result[domain_name]['state'] == 'running':
                 result[domain_name]['vcpu'] = dom.maxVcpus()
             else:
                 result[domain_name]['vcpu'] = 0

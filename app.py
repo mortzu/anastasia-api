@@ -33,11 +33,17 @@ import json
 # Client handler class
 class clientHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        # Make variables reachable
+        global CLI_ARGS
+        global VIRT_TYPE
+
         # Default HTTP code is 200
         http_code = 200
 
-        # If no data received
-        if not self.path:
+        if not self.headers.get('API-KEY') or (CLI_ARGS.api_key != self.headers.get('API-KEY')):
+            result = {'type': 'fatal', 'message': 'Unauthorized'}
+            http_code = 403
+        elif not self.path:
             # Continue running
             result = {'type': 'fatal', 'message': 'Not found'}
             http_code = 404
@@ -46,10 +52,6 @@ class clientHandler(BaseHTTPRequestHandler):
             o = urlparse(self.path)
 
             if o.path == '/':
-                # make variables rechable
-                global CLI_ARGS
-                global VIRT_TYPE
-
                 # instanciate class of virtual servers
                 mod = __import__(VIRT_TYPE)
                 class_ = getattr(mod, VIRT_TYPE)
@@ -74,8 +76,10 @@ class clientHandler(BaseHTTPRequestHandler):
         # Default HTTP code is 200
         http_code = 200
 
-        # If no data received
-        if not self.path:
+        if not self.headers.get('API-KEY') or (CLI_ARGS.api_key != self.headers.get('API-KEY')):
+            result = {'type': 'fatal', 'message': 'Unauthorized'}
+            http_code = 403
+        elif not self.path:
             # Continue running
             result = {'type': 'fatal', 'message': 'Not found'}
             http_code = 404

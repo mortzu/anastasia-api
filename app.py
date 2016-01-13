@@ -113,6 +113,8 @@ class clientHandler(BaseHTTPRequestHandler):
                 result = {'type': 'success', 'message': 'Task completed succesful'}
             elif http_code == 404:
                 result = {'type': 'fatal', 'message': 'Not found'}
+            elif http_code == 500:
+                result = {'type': 'fatal', 'message': 'Internal Server Error'}
             elif http_code == 501:
                 result = {'type': 'fatal', 'message': 'Not Implemented'}
 

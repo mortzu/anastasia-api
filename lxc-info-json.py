@@ -34,6 +34,6 @@ except:
     result['memory'] = 0
 
 result['vcpu'] = 0
-result['ip'] = cont.get_ips(timeout = 5)
+result['ip'] = cont.get_ips(timeout = 2)
 
 print json.dumps(result, separators = (',', ':'))

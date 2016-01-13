@@ -110,7 +110,7 @@ class clientHandler(BaseHTTPRequestHandler):
                 http_code = 404
 
             if http_code == 200:
-                result = {'type': 'success', 'message': 'Task completed succesful'}
+                result = {'type': 'success', 'message': 'Task completed successful'}
             elif http_code == 404:
                 result = {'type': 'fatal', 'message': 'Not found'}
             elif http_code == 500:

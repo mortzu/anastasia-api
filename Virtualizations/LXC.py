@@ -4,6 +4,7 @@ import pwd
 import glob
 import os
 import subprocess
+from subprocess import PIPE
 import json
 
 class LXC:
@@ -11,8 +12,8 @@ class LXC:
     unprivileged_container_path = '/var/lib/vps/'
     cgroup_path = '/sys/fs/cgroup/'
 
-    def __init__(self, libvirt_uri = None, enable_ssh_console = False):
-        self.enable_ssh_console = enable_ssh_console
+    def __init__(self, cli_args = None):
+        self.enable_ssh_console = cli_args.enable_ssh_console
 
     def get_domains(self):
         # dictionary for result
@@ -36,7 +37,7 @@ class LXC:
                 except:
                     continue
 
-                proc = subprocess.Popen('/usr/bin/sudo -Hu ' + lxc_username + ' /opt/anastasia-api/lxc-info-json.py ' + domain_name, shell = True, stdout = subprocess.PIPE)
+                proc = subprocess.Popen(['/usr/bin/sudo', '-Hu', lxc_username, '/opt/anastasia-api/lxc-info-json.py', domain_name], stdout = PIPE)
                 data = json.loads(proc.communicate()[0])
 
                 if self.enable_ssh_console:
@@ -70,27 +71,30 @@ class LXC:
                 except:
                     result[domain_name]['swap'] = 0
 
-                result[domain_name]['ip'] = cont.get_ips(timeout = 5)
+                result[domain_name]['ip'] = cont.get_ips(timeout = 2)
 
         return result
 
     def domain_start(self, name):
         if not os.path.exists(self.container_path + name):
-            return False
+            return 404
+
         cont = lxc.Container(name)
-        return cont.start()
+        return 200 if cont.start() else 500
 
     def domain_shutdown(self, name):
         if not os.path.exists(self.container_path + name):
-            return False
+            return 404
+
         cont = lxc.Container(name)
-        return cont.shutdown()
+        return 200 if cont.shutdown() else 500
 
     def domain_reboot(self, name):
-        return False
+        return 501
 
-    def domain_destroy(self, name):
+    def domain_stop(self, name):
         if not os.path.exists(self.container_path + name):
-            return False
+            return 404
+
         cont = lxc.Container(name)
-        return cont.stop()
+        return 200 if cont.stop() else 500

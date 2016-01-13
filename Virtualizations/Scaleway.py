@@ -32,13 +32,13 @@ class Scaleway:
         return result
 
     def domain_start(self, name):
-        return False
+        return 501
 
     def domain_shutdown(self, name):
-        return False
+        return 501
 
     def domain_reboot(self, name):
-        return False
+        return 501
 
-    def domain_destroy(self, name):
-        return False
+    def domain_stop(self, name):
+        return 501

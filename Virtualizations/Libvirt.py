@@ -74,19 +74,16 @@ class Libvirt:
         return result
 
     def domain_start(self, name):
-        # get domain
         dom = self.conn.lookupByName(name)
         dom.create()
 
     def domain_shutdown(self, name):
-        # get domain
         dom = self.conn.lookupByName(name)
         dom.shutdown()
 
     def domain_reboot(self, name):
         return False
 
-    def domain_destroy(self, name):
-        # get domain
+    def domain_stop(self, name):
         dom = self.conn.lookupByName(name)
         dom.destroy()

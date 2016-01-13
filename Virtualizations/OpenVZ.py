@@ -1,4 +1,5 @@
 import subprocess
+from subprocess import PIPE
 import socket
 import json
 import pwd
@@ -17,7 +18,7 @@ class OpenVZ:
         # dictionary for result
         result = {}
 
-        proc = subprocess.Popen('vzlist --json -a', shell = True, stdout = subprocess.PIPE)
+        proc = subprocess.Popen(['vzlist', '--json', '-a'], stdout = PIPE)
         data = json.loads(proc.communicate()[0])
 
         result['hostname'] = socket.getfqdn()
@@ -48,10 +49,19 @@ class OpenVZ:
         return result
 
     def domain_start(self, name):
-        proc = subprocess.Popen('vzctl start ' + self.shellquote(name), shell=True, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(['vzctl', 'start', self.shellquote(name)], stdout = PIPE)
+        proc.communicate()
+        return 200 if proc.returncode == 200 else 500
 
     def domain_shutdown(self, name):
-        proc = subprocess.Popen('vzctl stop ' + self.shellquote(name), shell=True, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(['vzctl', 'stop', self.shellquote(name)], stdout = PIPE)
+        proc.communicate()
+        return 200 if proc.returncode == 200 else 500
 
     def domain_reboot(self, name):
-        proc = subprocess.Popen('vzctl restart ' + self.shellquote(name), shell=True, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(['vzctl', 'restart', self.shellquote(name)], stdout = PIPE)
+        proc.communicate()
+        return 200 if proc.returncode == 200 else 500
+
+    def domain_stop(self, name):
+        return 501

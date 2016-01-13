@@ -15,7 +15,7 @@ class Libvirt:
         libvirt.VIR_DOMAIN_CRASHED: 'crashed',
     }
 
-    def __init__(self, libvirt_uri = None, enable_ssh_console = False):
+    def __init__(self, cli_args = None):
         # Get debian version
         try:
             self.debian_version = int(open('/etc/debian_version', 'r').read().split('.')[0])
@@ -23,7 +23,7 @@ class Libvirt:
             pass
 
         # Connect to libvirt
-        self.conn = libvirt.open(libvirt_uri)
+        self.conn = libvirt.open(cli_args.libvirt_uri)
 
     def get_domains(self):
         # Dictionary for result

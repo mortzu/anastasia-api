@@ -3,9 +3,9 @@ from scaleway.apis import ComputeAPI
 class Scaleway:
     conn = None
 
-    def __init__(self, api_key, enable_ssh_console = False):
+    def __init__(self, cli_args = None):
         # Create Scaleway API
-        self.conn = ComputeAPI(auth_token = api_key)
+        self.conn = ComputeAPI(auth_token = cli_args.scaleway_key)
 
     def get_domains(self):
         # dictionary for result

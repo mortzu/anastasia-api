@@ -4,8 +4,8 @@ import json
 import pwd
 
 class OpenVZ:
-    def __init__(self, libvirt_uri = None, enable_ssh_console = False):
-        self.enable_ssh_console = enable_ssh_console
+    def __init__(self, cli_args = None):
+        self.enable_ssh_console = cli_args.enable_ssh_console
 
     def shellquote(self, s):
         return "'" + s.replace("'", "'\\''") + "'"

@@ -3,9 +3,9 @@ import solusvm
 class SolusVM:
     conn = None
 
-    def __init__(self, url, api_id, api_key, enable_ssh_console = False):
+    def __init__(self, cli_args = None):
         # Create SolusVM API
-        self.conn = solusvm.SolusVM(url = url, api_id = api_id, api_key = api_key)
+        self.conn = solusvm.SolusVM(url = cli_args.solusvm_url, api_id = cli_args.solusvm_id, api_key = cli_args.solusvm_key)
 
     def get_domains(self):
         # dictionary for result

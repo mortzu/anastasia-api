@@ -55,9 +55,7 @@ class clientHandler(BaseHTTPRequestHandler):
             # Check for parameter action in GET request
             if 'action' in get_data:
                 # make variables rechable
-                global API_KEY
-                global LIBVIRT_URI
-                global SSH_CONSOLE
+                global CLI_ARGS
                 global VIRT_TYPE
 
                 # instanciate class of virtual servers
@@ -130,17 +128,10 @@ if __name__ == '__main__':
     parser.add_argument('--enable-ssh-console', action = 'store_true', help = 'Enable SSH console with OpenVZ')
     """ parse arguments and store
         them to arguments dict """
-    results = parser.parse_args()
+    CLI_ARGS = parser.parse_args()
 
     # Global variables
-    VIRT_TYPE = results.virtualization
-    API_KEY = results.api_key
-    LIBVIRT_URI = results.libvirt_uri
-    DIGITALOCEAN_TOKEN = results.digitalocean_token
-    SCALEWAY_KEY = results.scaleway_key
-    SOLUSVM_KEY = results.solusvm_key
-    SOLUSVM_HASH = results.solusvm_hash
-    SSH_CONSOLE = results.enable_ssh_console
+    VIRT_TYPE = CLI_ARGS.virtualization
 
     """ Check if given virtualization
         exists """

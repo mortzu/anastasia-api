@@ -3,9 +3,9 @@ import digitalocean
 class Digitalocean:
     manager = None
 
-    def __init__(self, token = None, enable_ssh_console = False):
+    def __init__(self, cli_args = None):
         # connect to digitalocean
-        self.manager = digitalocean.Manager(token = token)
+        self.manager = digitalocean.Manager(token = cli_args.digitalocean_token)
 
     def get_domains(self):
         # dictionary for result

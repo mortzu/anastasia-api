@@ -15,8 +15,8 @@ class SolusVM:
 
         # get hostname
         result['hostname'] = account.uuid
-        result['hypervisor'] = 'Digitalocean'
-        result['uri'] = 'https://www.digitalocean.com'
+        result['hypervisor'] = 'SolusVM'
+        result['uri'] = 'http://solusvm.com/'
 
         droplets = self.manager.get_all_droplets()
         for droplet in droplets:

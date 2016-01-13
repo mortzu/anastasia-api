@@ -82,7 +82,7 @@ class clientHandler(BaseHTTPRequestHandler):
         # Default HTTP code is 200
         http_code = 200
 
-        if not self.headers.get('API-KEY') or (CLI_ARGS.api_key != self.headers.get('API-KEY')):
+        if (CLI_ARGS.api_key != self.headers.get('API-KEY')):
             result = {'type': 'fatal', 'message': 'Unauthorized'}
             http_code = 403
         elif not self.path:

@@ -44,16 +44,8 @@ class clientHandler(BaseHTTPRequestHandler):
         else:
             # Parse URL parameters
             o = urlparse(self.path)
-            tmp = parse_qs(o.query)
-            """ remove [0] from parsed URL parameters
-                and parse arguments """
-            get_data = dict([(key, value[0]) for (key, value) in tmp.iteritems()])
 
-            # Dictionary for result
-            result = {}
-
-            # Check for parameter action in GET request
-            if 'action' in get_data:
+            if o.path == '/':
                 # make variables rechable
                 global CLI_ARGS
                 global VIRT_TYPE
@@ -62,36 +54,67 @@ class clientHandler(BaseHTTPRequestHandler):
                 mod = __import__(VIRT_TYPE)
                 class_ = getattr(mod, VIRT_TYPE)
 
-                if VIRT_TYPE == 'Digitalocean':
-                    virt = class_(DIGITALOCEAN_TOKEN, SSH_CONSOLE)
-                elif VIRT_TYPE == 'SolusVM':
-                    virt = class_(SOLUSVM_KEY, SOLUSVM_HASH, SSH_CONSOLE)
-                elif VIRT_TYPE == 'Scaleway':
-                    virt = class_(SCALEWAY_KEY, SSH_CONSOLE)
-                elif VIRT_TYPE == 'OpenVZ':
-                    virt = class_()
-                else:
-                    virt = class_(LIBVIRT_URI, SSH_CONSOLE)
+                virt = class_(CLI_ARGS)
 
-                # informations about all domains requested?
-                if get_data['action'] == 'get_domains':
-                    result = virt.get_domains()
-                elif get_data['action'] == 'domain_start' and get_data['name'] != '':
-                    virt.domain_start(get_data['name'])
-                elif get_data['action'] == 'domain_shutdown' and get_data['name'] != '':
-                    virt.domain_shutdown(get_data['name'])
-                elif get_data['action'] == 'domain_reboot' and get_data['name'] != '':
-                    virt.domain_reboot(get_data['name'])
-                elif get_data['action'] == 'domain_reset' and get_data['name'] != '':
-                    virt.domain_destroy(get_data['name'])
-                    time.sleep(2)
-                    virt.domain_start(get_data['name'])
-                else:
-                    result = {'type': 'fatal', 'message': 'Not found'}
-                    http_code = 404
+                # Informations about all domains requested
+                result = virt.get_domains()
             else:
                 result = {'type': 'fatal', 'message': 'Not found'}
                 http_code = 404
+
+        # return HTTP status
+        self.send_response(http_code)
+        self.send_header('Content-type', 'application/json')
+        # end of headers
+        self.end_headers()
+        # return JSON
+        self.wfile.write(json.dumps(result, separators=(',', ':')))
+
+    def do_POST(self):
+        # Default HTTP code is 200
+        http_code = 200
+
+        # If no data received
+        if not self.path:
+            # Continue running
+            result = {'type': 'fatal', 'message': 'Not found'}
+            http_code = 404
+        else:
+            # Parse URL parameters
+            o = urlparse(self.path)
+
+            # make variables rechable
+            global CLI_ARGS
+            global VIRT_TYPE
+
+            # instanciate class of virtual servers
+            mod = __import__(VIRT_TYPE)
+            class_ = getattr(mod, VIRT_TYPE)
+
+            virt = class_(CLI_ARGS)
+
+            splitted_url = o.path.split('/')
+
+            if splitted_url[1] == 'start':
+                http_code = virt.domain_start(splitted_url[2])
+            elif splitted_url[1] == 'shutdown':
+                http_code = virt.domain_shutdown(splitted_url[2])
+            elif splitted_url[1] == 'reboot':
+                http_code = virt.domain_reboot(splitted_url[2])
+            elif splitted_url[1] == 'reset':
+                virt.domain_stop(splitted_url[2])
+                time.sleep(2)
+                virt.domain_start(splitted_url[2])
+            else:
+                result = {'type': 'fatal', 'message': 'Not found'}
+                http_code = 404
+
+            if http_code == 200:
+                result = {'type': 'success', 'message': 'Task completed succesful'}
+            elif http_code == 404:
+                result = {'type': 'fatal', 'message': 'Not found'}
+            elif http_code == 501:
+                result = {'type': 'fatal', 'message': 'Not Implemented'}
 
         # return HTTP status
         self.send_response(http_code)

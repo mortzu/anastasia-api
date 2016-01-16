@@ -103,14 +103,18 @@ class clientHandler(BaseHTTPRequestHandler):
 
             if splitted_url[1] == 'start':
                 http_code = virt.domain_start(splitted_url[2])
+            elif splitted_url[1] == 'stop':
+                http_code = virt.domain_stop(splitted_url[2])
             elif splitted_url[1] == 'shutdown':
                 http_code = virt.domain_shutdown(splitted_url[2])
+            elif splitted_url[1] == 'restart':
+                http_code = virt.domain_stop(splitted_url[2])
+
+                if http_code == 200:
+                    time.sleep(2)
+                    http_code = virt.domain_start(splitted_url[2])
             elif splitted_url[1] == 'reboot':
                 http_code = virt.domain_reboot(splitted_url[2])
-            elif splitted_url[1] == 'reset':
-                virt.domain_stop(splitted_url[2])
-                time.sleep(2)
-                virt.domain_start(splitted_url[2])
             else:
                 result = {'type': 'fatal', 'message': 'Not found'}
                 http_code = 404

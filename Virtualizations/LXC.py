@@ -49,7 +49,7 @@ class LXC:
                 result[domain_name]['unprivileged'] = True
                 result[domain_name]['state'] = data['state']
                 result[domain_name]['memory'] = data['memory']
-                result[domain_name]['ip'] = data['ip']
+                result[domain_name]['ip_assignment'] = data['ip']
             else:
                 cont = lxc.Container(domain_name)
 
@@ -71,7 +71,7 @@ class LXC:
                 except:
                     result[domain_name]['swap'] = 0
 
-                result[domain_name]['ip'] = cont.get_ips(timeout = 2)
+                result[domain_name]['ip_assignment'] = cont.get_ips(timeout = 2)
 
         return result
 

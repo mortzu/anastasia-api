@@ -27,7 +27,7 @@ class SolusVM:
             result[domain_name]['name'] = droplet.name
             result[domain_name]['memory'] = droplet.memory * 1024
             result[domain_name]['vcpu'] = droplet.vcpus
-            result[domain_name]['ip'] = [droplet.ip_address]
+            result[domain_name]['ip_assignment'] = [droplet.ip_address]
 
         return result
 

@@ -27,7 +27,7 @@ class Scaleway:
                 result[domain_name]['name'] = domain_name
                 result[domain_name]['memory'] = 2097152 if str(server['commercial_type']) == 'C1' else 0
                 result[domain_name]['vcpu'] = 2 if str(server['commercial_type']) == 'C1' else 0
-                result[domain_name]['ip'] = [server['public_ip']['address'], server['private_ip']]
+                result[domain_name]['ip_assignment'] = [server['public_ip']['address'], server['private_ip']]
 
         return result
 

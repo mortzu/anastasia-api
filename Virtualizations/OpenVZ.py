@@ -44,7 +44,7 @@ class OpenVZ:
             result[domain_name]['name'] = domain_name
             result[domain_name]['memory'] = self.pages2mb(ct['physpages']['limit']) * 1024
             result[domain_name]['vcpu'] = ct['cpus']
-            result[domain_name]['ip'] = ct['ip']
+            result[domain_name]['ip_assignment'] = ct['ip']
 
         return result
 

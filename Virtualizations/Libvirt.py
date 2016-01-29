@@ -29,11 +29,6 @@ class Libvirt:
         # Dictionary for result
         result = {}
 
-        # Get hostname
-        result['hostname'] = self.conn.getHostname()
-        result['hypervisor'] = self.conn.getType()
-        result['uri'] = self.conn.getURI()
-
         domlist = []
 
         for id in self.conn.listDomainsID():
@@ -70,6 +65,10 @@ class Libvirt:
             result[domain_name]['console_type'] = 'VNC'
             result[domain_name]['console_address'] = xml_root.find('./devices/graphics').get('listen')
             result[domain_name]['console_port'] = xml_root.find('./devices/graphics').get('port')
+
+            result[domain_name]['hostname'] = self.conn.getHostname()
+            result[domain_name]['hypervisor'] = self.conn.getType()
+            result[domain_name]['uri'] = self.conn.getURI()
 
         return result
 

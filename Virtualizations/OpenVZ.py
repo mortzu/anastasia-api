@@ -21,9 +21,6 @@ class OpenVZ:
         proc = subprocess.Popen(['vzlist', '--json', '-a'], stdout = PIPE)
         data = json.loads(proc.communicate()[0])
 
-        result['hostname'] = socket.getfqdn()
-        result['hypervisor'] = 'OpenVZ'
-
         for ct in data:
             domain_name = ct['hostname']
             result[domain_name] = {}
@@ -45,6 +42,9 @@ class OpenVZ:
             result[domain_name]['memory'] = self.pages2mb(ct['physpages']['limit']) * 1024
             result[domain_name]['vcpu'] = ct['cpus']
             result[domain_name]['ip_assignment'] = ct['ip']
+
+            result[domain_name]['hostname'] = socket.getfqdn()
+            result[domain_name]['hypervisor'] = 'OpenVZ'
 
         return result
 

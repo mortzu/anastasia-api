@@ -19,9 +19,6 @@ class LXC:
         # dictionary for result
         result = {}
 
-        result['hostname'] = socket.getfqdn()
-        result['hypervisor'] = 'LXC'
-
         for container in glob.glob(self.container_path + '*/config') + glob.glob(self.unprivileged_container_path + 'vps*/.local/share/lxc/*/config'):
             domain_name = os.path.basename(container.rstrip('/config'))
             result[domain_name] = {}
@@ -72,6 +69,9 @@ class LXC:
                     result[domain_name]['swap'] = 0
 
                 result[domain_name]['ip_assignment'] = cont.get_ips(timeout = 2)
+
+            result[domain_name]['hypervisor'] = 'LXC'
+            result[domain_name]['hostname'] = socket.getfqdn()
 
         return result
 

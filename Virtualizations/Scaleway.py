@@ -13,11 +13,6 @@ class Scaleway:
 
         servers = self.conn.query().servers.get()
 
-        # get hostname
-        result['hostname'] = ''
-        result['hypervisor'] = 'Scaleway'
-        result['uri'] = 'https://www.scaleway.com'
-
         for key, value in servers.iteritems():
             for server in value:
                 domain_name = str(server['name'])
@@ -28,6 +23,9 @@ class Scaleway:
                 result[domain_name]['memory'] = 2097152 if str(server['commercial_type']) == 'C1' else 0
                 result[domain_name]['vcpu'] = 2 if str(server['commercial_type']) == 'C1' else 0
                 result[domain_name]['ip_assignment'] = [server['public_ip']['address'], server['private_ip']]
+                result[domain_name]['hostname'] = 'www.scaleway.com'
+                result[domain_name]['hypervisor'] = 'Scaleway'
+                result[domain_name]['uri'] = 'https://www.scaleway.com/'
 
         return result
 

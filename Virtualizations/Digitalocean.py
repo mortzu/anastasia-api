@@ -13,11 +13,6 @@ class Digitalocean:
 
         account = self.manager.get_account()
 
-        # get hostname
-        result['hostname'] = account.uuid
-        result['hypervisor'] = 'Digitalocean'
-        result['uri'] = 'https://www.digitalocean.com'
-
         droplets = self.manager.get_all_droplets()
         for droplet in droplets:
             domain_name = droplet.name
@@ -28,6 +23,9 @@ class Digitalocean:
             result[domain_name]['memory'] = droplet.memory * 1024
             result[domain_name]['vcpu'] = droplet.vcpus
             result[domain_name]['ip_assignment'] = [droplet.ip_address]
+            result[domain_name]['hypervisor'] = 'Digitalocean'
+            result[domain_name]['uri'] = 'https://www.digitalocean.com/'
+            result[domain_name]['hostname'] = 'www.digitalocean.com'
 
         return result
 

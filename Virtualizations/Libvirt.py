@@ -85,6 +85,19 @@ class Libvirt:
 
         return 200
 
+    def domain_stop(self, name):
+        try:
+            dom = self.conn.lookupByName(name)
+        except:
+            return 404
+
+        try:
+            dom.destroy()
+        except:
+            return 500
+
+        return 200
+
     def domain_shutdown(self, name):
         try:
             dom = self.conn.lookupByName(name)
@@ -98,17 +111,27 @@ class Libvirt:
 
         return 200
 
-    def domain_reboot(self, name):
-        return 501
-
-    def domain_stop(self, name):
+    def domain_restart(self, name):
         try:
             dom = self.conn.lookupByName(name)
         except:
             return 404
 
         try:
-            dom.destroy()
+            dom.reset()
+        except:
+            return 500
+
+        return 200
+
+    def domain_reboot(self, name):
+        try:
+            dom = self.conn.lookupByName(name)
+        except:
+            return 404
+
+        try:
+            dom.reboot()
         except:
             return 500
 

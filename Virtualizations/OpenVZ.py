@@ -53,8 +53,18 @@ class OpenVZ:
         proc.communicate()
         return 200 if proc.returncode == 200 else 500
 
+    def domain_stop(self, name):
+        proc = subprocess.Popen(['vzctl', 'stop', self.shellquote(name)], stdout = PIPE)
+        proc.communicate()
+        return 200 if proc.returncode == 200 else 500
+
     def domain_shutdown(self, name):
         proc = subprocess.Popen(['vzctl', 'stop', self.shellquote(name)], stdout = PIPE)
+        proc.communicate()
+        return 200 if proc.returncode == 200 else 500
+
+    def domain_restart(self, name):
+        proc = subprocess.Popen(['vzctl', 'restart', '--force', self.shellquote(name)], stdout = PIPE)
         proc.communicate()
         return 200 if proc.returncode == 200 else 500
 
@@ -62,6 +72,3 @@ class OpenVZ:
         proc = subprocess.Popen(['vzctl', 'restart', self.shellquote(name)], stdout = PIPE)
         proc.communicate()
         return 200 if proc.returncode == 200 else 500
-
-    def domain_stop(self, name):
-        return 501

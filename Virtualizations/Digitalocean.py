@@ -32,11 +32,14 @@ class Digitalocean:
     def domain_start(self, name):
         return 501
 
+    def domain_stop(self, name):
+        return 501
+
     def domain_shutdown(self, name):
         return 501
 
-    def domain_reboot(self, name):
+    def domain_restart(self, name):
         return 501
 
-    def domain_stop(self, name):
+    def domain_reboot(self, name):
         return 501

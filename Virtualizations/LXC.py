@@ -82,6 +82,13 @@ class LXC:
         cont = lxc.Container(name)
         return 200 if cont.start() else 500
 
+    def domain_stop(self, name):
+        if not os.path.exists(self.container_path + name):
+            return 404
+
+        cont = lxc.Container(name)
+        return 200 if cont.stop() else 500
+
     def domain_shutdown(self, name):
         if not os.path.exists(self.container_path + name):
             return 404
@@ -89,12 +96,8 @@ class LXC:
         cont = lxc.Container(name)
         return 200 if cont.shutdown() else 500
 
-    def domain_reboot(self, name):
+    def domain_restart(self, name):
         return 501
 
-    def domain_stop(self, name):
-        if not os.path.exists(self.container_path + name):
-            return 404
-
-        cont = lxc.Container(name)
-        return 200 if cont.stop() else 500
+    def domain_reboot(self, name):
+        return 501

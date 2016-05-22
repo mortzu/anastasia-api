@@ -41,6 +41,11 @@ fi
 
 # Iterate over all containers
 for CONTAINER_NAME in $(lxc-ls -1); do
+  # Check if directory already exists
+  if [ ! -d "/var/lib/anastasia/${CONTAINER_NAME}" ]; then
+    mkdir -p "/var/lib/anastasia/${CONTAINER_NAME}"
+  fi
+
   # If no password for VNC is defined
   # generate a new one
   if [ ! -f "/var/lib/anastasia/${CONTAINER_NAME}/vncpasswd" ]; then

@@ -25,10 +25,24 @@ class LXC:
             cont = lxc.Container(domain_name)
 
             result[domain_name]['unprivileged'] = False
-            result[domain_name]['console_type'] = None
-            result[domain_name]['console_address'] = None
-            result[domain_name]['console_port'] = None
-            result[domain_name]['console_username'] = None
+
+            if os.path.isfile('/var/lib/anastasia/' + domain_name + '/vncport') and os.path.isfile('/var/lib/anastasia/' + domain_name + '/vncpasswd'):
+                result[domain_name]['console_type'] = 'VNC'
+                result[domain_name]['console_address'] = '0.0.0.0'
+
+                try:
+                    result[domain_name]['console_port'] = int(open('/var/lib/anastasia/' + domain_name + '/vncport', 'r').read())
+                except:
+                    result[domain_type]['console_port'] = 0
+
+                try:
+                    result[domain_name]['console_passwd'] = open('/var/lib/anastasia/' + domain_name + '/vncpasswd', 'r').read().strip()
+                except:
+                    result[domain_type]['console_passwd'] = ''
+            else:
+                result[domain_name]['console_type'] = None
+                result[domain_name]['console_address'] = None
+                result[domain_name]['console_port'] = None
 
             result[domain_name]['state'] = cont.state.swapcase()
 

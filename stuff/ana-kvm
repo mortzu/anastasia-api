@@ -1,0 +1,286 @@
+#! /usr/bin/env bash
+# 2016, Moritz Kaspar Rudert (mortzu) <post@moritzrudert.de>.
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without modification, are
+# permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this list of
+#   conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice, this list
+#   of conditions and the following disclaimer in the documentation and/or other materials
+#   provided with the distribution.
+#
+# * The names of its contributors may not be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# * Feel free to send Club Mate to support the work.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS
+# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS
+# AND CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+
+# Set path to defaults
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+function show_help() {
+  echo 'anastasia KVM tool'
+  echo "usage: $(basename $0)"
+  echo
+  echo -e "\tadd"
+  echo -e "\t\t--help\tShows this help"
+  echo -e "\t\t--hostname=\tSet hostname"
+  echo -e "\t\t--ram=\tMemory limit (in MB)"
+  echo -e "\t\t--swap=\tSwap limit (in MB)"
+  echo -e "\t\t--nameservers=\tDNS servers"
+  echo -e "\t\t--domain=\tDNS domain"
+  echo -e "\t\t--ipaddr=\tIP address"
+}
+
+# Set defaults
+KVM_ARCH='amd64'
+KVM_HOSTNAME=''
+KVM_MEMORY=512
+KVM_SWAP=256
+
+NET_IPADDRESSES=''
+NET_NAMESERVERS=''
+NET_DOMAIN=''
+
+# Use LVM
+LVM=0
+
+# LVM physical device
+LVM_BASE_DEVICE=''
+
+# LVM volume group
+LVM_VG_NAME=''
+
+# LVM size
+LVM_SIZE='10G'
+
+# Use caching
+LVM_CACHING=0
+
+# LVM caching device
+LVM_CACHE_DEVICE=''
+
+if [ -f /etc/default/ana-kvm ]; then
+  . /etc/default/ana-kvm
+fi
+
+# parse arguments
+for ARG in "$@"; do
+  if [[ "$ARG" =~ ^--hostname= ]]; then
+    KVM_HOSTNAME="${ARG#--hostname=}"
+  elif [[ "$ARG" =~ ^--memory= ]]; then
+    KVM_MEMORY="${ARG#--memory=}"
+  elif [[ "$ARG" =~ ^--swap= ]]; then
+    KVM_SWAP="${ARG#--swap=}"
+  elif [[ "$ARG" =~ ^--nameservers= ]]; then
+    NET_NAMESERVERS="${ARG#--nameservers=}"
+  elif [[ "$ARG" =~ ^--domain= ]]; then
+    NET_DOMAIN="${ARG#--domain=}"
+  elif [[ "$ARG" =~ ^--ipaddr= ]]; then
+    NET_IPADDRESSES="${ARG#--ipaddr=}"
+  elif [ "$ARG" = '--lvm' ]; then
+    LVM=1
+  elif [ "$ARG" = '--help' -o "$ARG" = '-h' ]; then
+    show_help
+    exit $?
+  fi
+done
+
+case "$1" in
+  add|create)
+    # Check if all parameters are given
+    if [ -z "$KVM_HOSTNAME" ]; then
+      echo 'You have to enter --hostname=' >&2
+      exit 1
+    elif [ -z "$NET_IPADDRESSES" ]; then
+      echo 'You have to enter --ipaddr=' >&2
+      exit 1
+    elif [ -z "$NET_NAMESERVERS" ]; then
+      echo 'You have to enter --nameservers=' >&2
+      exit 1
+    elif [ -z "$NET_DOMAIN" ]; then
+      echo 'You have to enter --domain=' >&2
+      exit 1
+    fi
+
+    # Get the short variant of host name
+    KVM_HOSTNAME_SHORT="$(cut -d. -f1 <<<"$KVM_HOSTNAME")"
+
+    # Create LV
+    if [ $LVM -ne 0 ]; then
+      # Create LV
+      lvcreate --yes \
+               --size "$LVM_SIZE" \
+               --name "kvm-${KVM_HOSTNAME}" \
+               "$LVM_VG_NAME" \
+               "$LVM_BASE_DEVICE"
+
+      # Check if caching for LV
+      # is wanted
+      if [ $LVM_CACHING -eq 1 ]; then
+        # Create caching LV
+        lvcreate --yes \
+                 --size 1G \
+                 --name "kvm-${KVM_HOSTNAME}-cache" \
+                 "$LVM_VG_NAME" \
+                 "$LVM_CACHE_DEVICE"
+
+        # Create caching meta LV
+        lvcreate --yes \
+                 --size 10M \
+                 --name "kvm-${KVM_HOSTNAME}-cache-meta" \
+                 "$LVM_VG_NAME" \
+                 "$LVM_CACHE_DEVICE"
+
+        # Merge caching and meta LV
+        lvconvert --yes \
+                  --type cache-pool \
+                  --cachemode writeback \
+                  --poolmetadata "${LVM_VG_NAME}/kvm-${KVM_HOSTNAME}-cache-meta" \
+                                 "${LVM_VG_NAME}/kvm-${KVM_HOSTNAME}-cache"
+
+        # Add caching LV to regular LV
+        lvconvert --yes \
+                  --type cache \
+                  --cachepool "${LVM_VG_NAME}/kvm-${KVM_HOSTNAME}-cache" \
+                              "${LVM_VG_NAME}/kvm-${KVM_HOSTNAME}"
+      fi
+    fi
+
+    # Get values for network configuration
+    for IFACE_LINE in $(echo "$NET_IPADDRESSES" | tr ',' ' '); do
+      IFACE_BRIDGE="$(echo ${IFACE_LINE} | cut -d/ -f1)"
+      IFACE_ADDRESS="$(echo ${IFACE_LINE} | cut -d/ -f2)"
+      IFACE_NETMASK="$(echo ${IFACE_LINE} | cut -d/ -f3)"
+      IFACE_GATEWAY="$(echo ${IFACE_LINE} | cut -d/ -f4)"
+      IFACE_MACADDRESS="$(printf '42:33:68:32:%02x:%02x' $((RANDOM%256)) $((RANDOM%256)))"
+
+      break
+    done
+
+    # Generate temporary directory
+    PRESEED_FOLDER="$(mktemp -d)"
+
+    # Generate preseed file
+    cat >"${PRESEED_FOLDER}/preseed.cfg" <<EOF
+d-i debian-installer/locale string en_US
+d-i keyboard-configuration/xkb-keymap select us
+d-i console-keymaps-at/keymap select us
+d-i netcfg/choose_interface select eth0
+d-i netcfg/disable_autoconfig boolean true
+d-i netcfg/get_ipaddress string ${IFACE_ADDRESS}
+d-i netcfg/get_netmask string ${IFACE_NETMASK}
+d-i netcfg/get_gateway string ${IFACE_GATEWAY}
+d-i netcfg/get_nameservers string ${NET_NAMESERVERS}
+d-i netcfg/confirm_static boolean true
+d-i netcfg/hostname string ${KVM_HOSTNAME}
+d-i mirror/country string manual
+d-i mirror/http/hostname string http.debian.net
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+d-i mirror/suite string stable
+d-i passwd/make-user boolean false
+d-i passwd/root-password password root
+d-i passwd/root-password-again password root
+d-i clock-setup/utc boolean true
+d-i time/zone string Europe/Berlin
+d-i clock-setup/ntp boolean true
+d-i partman-auto/method string regular
+d-i partman-auto/expert_recipe string \\
+      boot-root-vartmp :: \\
+              1024 1024 1024 ext4 \\
+                      \$primary{ } \$bootable{ } \\
+                      method{ format } format{ } \\
+                      use_filesystem{ } filesystem{ ext4 } \\
+                      mountpoint{ /boot } \\
+                      options/discard{ discard } \\
+                      options/noatime{ noatime } options/nodiratime{ nodiratime } \\
+                      options/nodev{ nodev } options/nosuid{ nosuid } options/noexec{ noexec } \\
+              . \\
+              5120 9216 -1 ext4 \\
+                      method{ format } format{ } \\
+                      use_filesystem{ } filesystem{ ext4 } \\
+                      mountpoint{ / } \\
+                      options/discard{ discard } \\
+                      options/noatime{ noatime } options/nodiratime{ nodiratime } \\
+              . \\
+              1024 1024 1024 ext4 \\
+                      method{ format } format{ } \\
+                      use_filesystem{ } filesystem{ ext4 } \\
+                      mountpoint{ /var/tmp } \\
+                      options/discard{ discard } \\
+                      options/noatime{ noatime } options/nodiratime{ nodiratime } \\
+                      options/nodev{ nodev } options/nosuid{ nosuid } options/noexec{ noexec } \\
+              .
+d-i partman-auto/choose_recipe select boot-root-vartmp
+d-i partman-basicfilesystems/no_swap boolean false
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+d-i partman/mount_style select uuid
+d-i base-installer/install-recommends boolean false
+d-i base-installer/kernel/image string linux-image-${KVM_ARCH}
+d-i apt-setup/non-free boolean true
+d-i apt-setup/contrib boolean true
+d-i apt-setup/use_mirror boolean true
+d-i apt-setup/services-select multiselect security, volatile
+d-i apt-setup/security_host string security.debian.org
+d-i apt-setup/volatile_host string volatile.debian.org
+d-i debian-installer/allow_unauthenticated boolean false
+tasksel tasksel/first multiselect minimal
+d-i pkgsel/include string openssh-server
+d-i pkgsel/upgrade select full-upgrade
+popularity-contest popularity-contest/participate boolean false
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/bootdev string /dev/vda
+d-i finish-install/keep-consoles boolean true
+d-i finish-install/reboot_in_progress note
+d-i cdrom-detect/eject boolean false
+d-i debian-installer/exit/halt boolean false
+d-i debian-installer/exit/poweroff boolean false
+EOF
+
+    # Install KVM instance
+    virt-install \
+      --connect qemu:///system \
+      --name "$KVM_HOSTNAME" \
+      --ram "$KVM_MEMORY" \
+      --cpu host \
+      --graphics vnc,listen=127.0.0.1 \
+      --vcpus 1 \
+      --disk path="/dev/${LVM_VG_NAME}/kvm-${KVM_HOSTNAME}" \
+      --location 'http://http.debian.net/debian/dists/stable/main/installer-amd64/' \
+      --initrd-inject="${PRESEED_FOLDER}/preseed.cfg" \
+      --virt-type kvm \
+      --os-variant debianwheezy \
+      --network bridge="$IFACE_BRIDGE",mac="$IFACE_MACADDRESS" \
+      --extra-args "auto hostname=${KVM_HOSTNAME} domain=${NET_DOMAIN} text" \
+      --noautoconsole
+
+    # Remove temporary directory
+    if [ -n "$PRESEED_FOLDER" -a -d "$PRESEED_FOLDER" ]; then
+      rm -rf "$PRESEED_FOLDER"
+    fi
+  ;;
+  ps|list)
+    virsh list --all
+  ;;
+  *)
+    show_help
+  ;;
+esac

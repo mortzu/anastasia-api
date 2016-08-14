@@ -1,0 +1,328 @@
+#! /usr/bin/env bash
+# 2016, Moritz Kaspar Rudert (mortzu) <post@moritzrudert.de>.
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without modification, are
+# permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this list of
+#   conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice, this list
+#   of conditions and the following disclaimer in the documentation and/or other materials
+#   provided with the distribution.
+#
+# * The names of its contributors may not be used to endorse or promote products derived
+#   from this software without specific prior written permission.
+#
+# * Feel free to send Club Mate to support the work.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS
+# OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS
+# AND CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+set -e
+
+# Set path to defaults
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+function show_help() {
+  echo 'LXC tool'
+  echo "usage: $(basename $0)"
+  echo
+  echo -e "\t--help\tShows this help"
+  echo -e "\t--hostname=\tSet hostname"
+  echo -e "\t--ram=\tMemory limit (in MB)"
+  echo -e "\t--swap=\tSwap limit (in MB)"
+  echo -e "\t--nameservers=\tDNS servers"
+  echo -e "\t--domain=\tDNS domain"
+  echo -e "\t--ipaddr=\tIP address"
+}
+
+# Set defaults
+CT_ARCH='amd64'
+CT_HOSTNAME=''
+CT_MEMORY=128
+CT_SWAP=256
+
+NET_IPADDRESSES=''
+NET_NAMESERVERS=''
+NET_DOMAIN=''
+
+# Use LVM
+LVM=0
+
+# LVM physical device
+LVM_BASE_DEVICE=''
+
+# LVM volume group
+LVM_VG_NAME=''
+
+# LVM size
+LVM_SIZE='5G'
+
+# Use caching
+LVM_CACHING=0
+
+# LVM caching device
+LVM_CACHE_DEVICE=''
+
+if [ -f /etc/default/ana-lxc ] ; then
+  . /etc/default/ana-lxc
+fi
+
+# parse arguments
+for ARG in "$@"; do
+  if [[ "$ARG" =~ ^--hostname= ]]; then
+    CT_HOSTNAME="${ARG#--hostname=}"
+  elif [[ "$ARG" =~ ^--memory= ]]; then
+    CT_MEMORY="${ARG#--memory=}"
+  elif [[ "$ARG" =~ ^--swap= ]]; then
+    CT_SWAP="${ARG#--swap=}"
+  elif [[ "$ARG" =~ ^--nameservers= ]]; then
+    NET_NAMESERVERS="${ARG#--nameservers=}"
+  elif [[ "$ARG" =~ ^--domain= ]]; then
+    NET_DOMAIN="${ARG#--domain=}"
+  elif [[ "$ARG" =~ ^--ipaddr= ]]; then
+    NET_IPADDRESSES="${ARG#--ipaddr=}"
+  elif [ "$ARG" = '--lvm' ]; then
+    LVM=1
+  elif [ "$ARG" = '--help' -o "$ARG" = '-h' ]; then
+    show_help
+    exit $?
+  fi
+done
+
+case "$1" in
+  add|create)
+    if [ -z "$CT_HOSTNAME" ]; then
+      echo 'You have to enter --hostname=' >&2
+      exit 1
+    elif [ -z "$NET_IPADDRESSES" ]; then
+      echo 'You have to enter --ipaddr=' >&2
+      exit 1
+    elif [ -z "$NET_NAMESERVERS" ]; then
+      echo 'You have to enter --nameservers=' >&2
+      exit 1
+    elif [ -z "$NET_DOMAIN" ]; then
+      echo 'You have to enter --domain=' >&2
+      exit 1
+    fi
+
+    CT_HOSTNAME_SHORT="$(cut -d. -f1 <<<"$CT_HOSTNAME")"
+
+    # Get last line of subuid
+    if [ -f /etc/subuid ]; then
+      SUBUID_LAST_LINE="$(sort --numeric-sort --field-separator=: --key=2 < /etc/subuid | tail -n1)"
+      SUBUID_START=$[$(cut -d: -f2 <<<"$SUBUID_LAST_LINE")+$(cut -d: -f3 <<<"$SUBUID_LAST_LINE")+1]
+    else
+      SUBUID_START=100000
+
+      touch /etc/subuid
+    fi
+
+    SUBUID_END=$[${SUBUID_START}+65536]
+
+    # Add sub UIDs to root
+    usermod --add-subuids ${SUBUID_START}-${SUBUID_END} root
+
+    # Get last line of subgid
+    if [ -f /etc/subgid ]; then
+      SUBGID_LAST_LINE="$(sort --numeric-sort --field-separator=: --key=2 < /etc/subgid | tail -n1)"
+      SUBGID_START=$[$(cut -d: -f2 <<<"$SUBGID_LAST_LINE")+$(cut -d: -f3 <<<"$SUBGID_LAST_LINE")+1]
+    else
+      SUBGID_START=100000
+
+      touch /etc/subgid
+    fi
+
+    SUBGID_END=$[${SUBGID_START}+65536]
+
+    # Add sub GIDs to root
+    usermod --add-subgids ${SUBGID_START}-${SUBGID_END} root
+
+    # Write user/group ID ranges to config file
+    cat >"/etc/lxc/default.conf" <<EOF
+lxc.id_map = u 0 ${SUBUID_START} 65536
+lxc.id_map = g 0 ${SUBGID_START} 65536
+EOF
+
+    # Create container
+    if [ $LVM -ne 0 ]; then
+      lvcreate --size "$LVM_SIZE" \
+               --name "vm-${CT_HOSTNAME}" \
+               "$LVM_VG_NAME" \
+               "$LVM_BASE_DEVICE"
+
+      if [ $LVM_CACHING -eq 1 ]; then
+        lvcreate --size 1G \
+                 --name "vm-${CT_HOSTNAME}-cache" \
+                 "$LVM_VG_NAME" \
+                 "$LVM_CACHE_DEVICE"
+
+        lvcreate --size 10M \
+                 --name "vm-${CT_HOSTNAME}-cache-meta" \
+                 "$LVM_VG_NAME" \
+                 "$LVM_CACHE_DEVICE"
+
+        lvconvert --type cache-pool \
+                  --cachemode writeback \
+                  --poolmetadata "${LVM_VG_NAME}/vm-${CT_HOSTNAME}-cache-meta" \
+                                 "${LVM_VG_NAME}/vm-${CT_HOSTNAME}-cache"
+
+        lvconvert --type cache \
+                  --cachepool "${LVM_VG_NAME}/vm-${CT_HOSTNAME}-cache" \
+                              "${LVM_VG_NAME}/vm-${CT_HOSTNAME}"
+      fi
+
+      mkfs.ext4 -m 0 "/dev/${LVM_VG_NAME}/vm-${CT_HOSTNAME}"
+
+      FS_UUID="$(blkid | grep "/dev/mapper/${LVM_VG_NAME}-vm--$(sed -e 's/-/--/g' <<<"${CT_HOSTNAME}")" | cut -d' ' -f2 | sed -e 's/"//g')"
+
+      echo "${FS_UUID} /var/lib/lxc/${CT_HOSTNAME} ext4    noatime,nodiratime 0        0" >> /etc/fstab
+      mkdir -p "/var/lib/lxc/${CT_HOSTNAME}"
+      mount "/var/lib/lxc/${CT_HOSTNAME}"
+    fi
+
+    lxc-create --template=download \
+               --name="$CT_HOSTNAME" -- \
+               --dist debian \
+               --release jessie \
+               --arch $CT_ARCH
+
+    # Container directory
+    CT_DIR="/var/lib/lxc/${CT_HOSTNAME}"
+
+    # Remove DHCP network interface
+    sed -e '/auto eth0/d' \
+        -e '/iface eth0/d' \
+        -i "${CT_DIR}/rootfs/etc/network/interfaces"
+
+    cat >> "${CT_DIR}/config" <<EOF
+lxc.cgroup.memory.limit_in_bytes = $[ $CT_MEMORY * 1024 * 1024 ]
+lxc.cgroup.memory.memsw.limit_in_bytes = $[ $CT_SWAP * 1024 * 1024 ]
+
+lxc.mount.entry = /dev/net dev/net none bind,create=dir
+
+lxc.mount.auto = cgroup
+lxc.kmsg = 0
+lxc.autodev = 1
+
+lxc.start.auto = 1
+lxc.start.delay = 10
+
+lxc.aa_allow_incomplete = 1
+EOF
+
+    ETH_COUNTER=0
+    for IFACE_LINE in $(echo "$NET_IPADDRESSES" | tr ',' ' '); do
+      IFACE_BRIDGE="$(echo ${IFACE_LINE} | cut -d/ -f1)"
+      IFACE_ADDRESS="$(echo ${IFACE_LINE} | cut -d/ -f2)"
+      IFACE_NETMASK="$(echo ${IFACE_LINE} | cut -d/ -f3)"
+      IFACE_GATEWAY="$(echo ${IFACE_LINE} | cut -d/ -f4)"
+      IFACE_MACADDRESS="$(printf '42:33:68:32:%02x:%02x' $((RANDOM%256)) $((RANDOM%256)))"
+
+      cat >> "${CT_DIR}/config" <<EOF
+
+lxc.network.type = veth
+lxc.network.flags = up
+lxc.network.link = ${IFACE_BRIDGE}
+lxc.network.hwaddr = ${IFACE_MACADDRESS}
+EOF
+
+      if [ $ETH_COUNTER -ne 0 ]; then
+        echo >> "${CT_DIR}/rootfs/etc/network/interfaces"
+      fi
+
+      cat >> "${CT_DIR}/rootfs/etc/network/interfaces" <<EOF
+auto eth${ETH_COUNTER}
+iface eth${ETH_COUNTER} inet static
+	address ${IFACE_ADDRESS}
+	netmask ${IFACE_NETMASK}
+	gateway ${IFACE_GATEWAY}
+EOF
+
+      if [ $ETH_COUNTER -eq 0 -a -n "$NET_NAMESERVERS" ]; then
+        cat >> "${CT_DIR}/rootfs/etc/network/interfaces" <<EOF
+	# dns-* options are implemented by the resolvconf package, if installed
+	dns-nameservers ${NET_NAMESERVERS}
+	dns-search ${NET_DOMAIN}
+EOF
+
+        rm -f "${CT_DIR}/rootfs/etc/resolv.conf"
+        for NET_NAMESERVER in $NET_NAMESERVERS; do
+          echo "nameserver ${NET_NAMESERVER}" >> "${CT_DIR}/rootfs/etc/resolv.conf"
+        done
+      fi
+
+      ETH_COUNTER=$[ $ETH_COUNTER +1 ]
+    done
+
+    # Add container to containers hosts file
+    echo "127.0.1.1 ${CT_HOSTNAME} ${CT_HOSTNAME_SHORT}" >> "${CT_DIR}/rootfs/etc/hosts"
+
+    cat > "${CT_DIR}/rootfs/etc/apt/sources.list" <<EOF
+deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ jessie main non-free contrib
+deb-src http://ftp.de.debian.org/debian/ jessie main non-free contrib
+
+deb [arch=${CT_ARCH}] http://security.debian.org/ jessie/updates main contrib non-free
+deb-src http://security.debian.org/ jessie/updates main contrib non-free
+
+# jessie-updates, previously known as 'volatile'
+deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ jessie-updates main contrib non-free
+deb-src http://ftp.de.debian.org/debian/ jessie-updates main contrib non-free
+EOF
+
+    # Prepare chroot
+    echo 'exit 101' > "${CT_DIR}/rootfs/usr/sbin/policy-rc.d"
+    chmod +x "${CT_DIR}/rootfs/usr/sbin/policy-rc.d"
+
+    for CT_DEV in null random urandom; do
+      touch "${CT_DIR}/rootfs/dev/${CT_DEV}"
+      mount --bind "/dev/${CT_DEV}" "${CT_DIR}/rootfs/dev/${CT_DEV}"
+    done
+
+    lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get update"
+    lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends dist-upgrade"
+    lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends install resolvconf ssh python cron sysvinit-core"
+    lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --purge autoremove"
+
+    for CT_DEV in null random urandom; do
+      umount "${CT_DIR}/rootfs/dev/${CT_DEV}"
+      rm -f "${CT_DIR}/rootfs/dev/${CT_DEV}"
+    done
+
+    rm -f "${CT_DIR}/rootfs/usr/sbin/policy-rc.d"
+
+    # Allow root password login via SSH
+    sed -e 's/PermitRootLogin without-password/PermitRootLogin yes/' \
+        -i "${CT_DIR}/rootfs/etc/ssh/sshd_config"
+
+    # Create SSH configuration directory
+    mkdir -p "${CT_DIR}/rootfs/root/.ssh"
+    chown ${SUBUID_START}:${SUBGID_START} "${CT_DIR}/rootfs/root/.ssh"
+
+    # Add SSH key
+    cat >"${CT_DIR}/rootfs/root/.ssh/authorized_keys" <<EOF
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG8H2fn/GJ5LPyKQmIymyzVVn/OxB8KLn/VUcoHu0oF3 Moritz Kaspar Rudert (mortzu)
+EOF
+    chown ${SUBUID_START}:${SUBGID_START} "${CT_DIR}/rootfs/root/.ssh/authorized_keys"
+
+    # Fix PAM LXC issue
+    for PAM_CONFIG_FILE in "${CT_DIR}/rootfs/etc/pam.d/cron" "${CT_DIR}/rootfs/etc/pam.d/login" "${CT_DIR}/rootfs/etc/pam.d/sshd"; do
+      sed -e 's/^.*loginuid.so.*$/\#&/' -i "$PAM_CONFIG_FILE"
+    done
+
+    # Start container
+    lxc-start -n "$CT_HOSTNAME"
+  ;;
+  *)
+    show_help
+  ;;
+esac

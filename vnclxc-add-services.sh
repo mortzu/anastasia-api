@@ -31,7 +31,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Get last port from configuration files
-VNC_PORT="$(cat /var/lib/anastasia/*/vncport | sort -n | tail -n1)"
+VNC_PORT="$(sort -n < /var/lib/anastasia/*/vncport | tail -n1)"
 
 # If returned port is empty
 # start at 5900
@@ -66,11 +66,25 @@ for CONTAINER_NAME in $(lxc-ls -1); do
 
   # Replace placeholder in systemd service
   # and install systemd
-  sed -e "s/___VNCPASSWD___/${VNC_PASSWD}/g" \
-      -e "s/___VNCPORT___/${VNC_PORT}/g" \
-      -e "s/___CONTAINER_NAME___/${CONTAINER_NAME}/g" \
-      /opt/anastasia-api/systemd/vnclxc.service.template > \
-      /etc/systemd/system/vnclxc-${VNC_PORT}.service
+  cat >"/etc/systemd/system/vnclxc-${VNC_PORT}.service" <<__EOF__
+[Unit]
+Description=VNC proxy for LXC containers
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=vnclxc
+Group=vnclxc
+Environment=PVE_VNC_TICKET=${VNC_PASSWD}
+ExecStart=/usr/bin/vncterm -timeout 9999999999999 -notls -rfbport ${VNC_PORT} -c /opt/anastasia-api/vnclxc-wrapper.sh ${CONTAINER_NAME}
+Restart=always
+CapabilityBoundingSet=~
+KillMode=control-group
+KillSignal=SIGKILL
+
+[Install]
+WantedBy=multi-user.target
+__EOF__
 
   # Reload systemd
   systemctl daemon-reload

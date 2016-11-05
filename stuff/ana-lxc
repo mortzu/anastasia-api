@@ -155,28 +155,33 @@ EOF
 
     # Create container
     if [ $LVM -ne 0 ]; then
-      lvcreate --size "$LVM_SIZE" \
+      lvcreate --yes \
+               --size "$LVM_SIZE" \
                --name "vm-${CT_HOSTNAME}" \
                "$LVM_VG_NAME" \
                "$LVM_BASE_DEVICE"
 
       if [ $LVM_CACHING -eq 1 ]; then
-        lvcreate --size 1G \
+        lvcreate --yes \
+                 --size 1G \
                  --name "vm-${CT_HOSTNAME}-cache" \
                  "$LVM_VG_NAME" \
                  "$LVM_CACHE_DEVICE"
 
-        lvcreate --size 10M \
+        lvcreate --yes \
+                 --size 10M \
                  --name "vm-${CT_HOSTNAME}-cache-meta" \
                  "$LVM_VG_NAME" \
                  "$LVM_CACHE_DEVICE"
 
-        lvconvert --type cache-pool \
+        lvconvert --yes \
+                  --type cache-pool \
                   --cachemode writeback \
                   --poolmetadata "${LVM_VG_NAME}/vm-${CT_HOSTNAME}-cache-meta" \
                                  "${LVM_VG_NAME}/vm-${CT_HOSTNAME}-cache"
 
-        lvconvert --type cache \
+        lvconvert --yes \
+                  --type cache \
                   --cachepool "${LVM_VG_NAME}/vm-${CT_HOSTNAME}-cache" \
                               "${LVM_VG_NAME}/vm-${CT_HOSTNAME}"
       fi

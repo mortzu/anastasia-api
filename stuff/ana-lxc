@@ -188,7 +188,7 @@ EOF
 
       mkfs.ext4 -m 0 "/dev/${LVM_VG_NAME}/vm-${CT_HOSTNAME}"
 
-      FS_UUID="$(blkid | grep "/dev/mapper/${LVM_VG_NAME}-vm--$(sed -e 's/-/--/g' <<<"${CT_HOSTNAME}")" | cut -d' ' -f2 | sed -e 's/"//g')"
+      FS_UUID="$(blkid | grep "/dev/mapper/$(sed -e 's/-/--/g' <<<"${LVM_VG_NAME}")-vm--$(sed -e 's/-/--/g' <<<"${CT_HOSTNAME}")" | cut -d' ' -f2 | sed -e 's/"//g')"
 
       echo "${FS_UUID} /var/lib/lxc/${CT_HOSTNAME} ext4    noatime,nodiratime 0        0" >> /etc/fstab
       mkdir -p "/var/lib/lxc/${CT_HOSTNAME}"

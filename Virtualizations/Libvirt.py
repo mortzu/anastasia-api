@@ -62,9 +62,12 @@ class Libvirt:
             else:
                 result[domain_name]['vcpu'] = 0
 
-            result[domain_name]['console_type'] = 'VNC'
-            result[domain_name]['console_address'] = xml_root.find('./devices/graphics').get('listen')
-            result[domain_name]['console_port'] = xml_root.find('./devices/graphics').get('port')
+            try:
+                result[domain_name]['console_type'] = 'VNC'
+                result[domain_name]['console_address'] = xml_root.find('./devices/graphics').get('listen')
+                result[domain_name]['console_port'] = xml_root.find('./devices/graphics').get('port')
+            except:
+                pass
 
             result[domain_name]['hostname'] = self.conn.getHostname()
             result[domain_name]['hypervisor'] = self.conn.getType()

@@ -73,6 +73,13 @@ LVM_CACHING=0
 # LVM caching device
 LVM_CACHE_DEVICE=''
 
+# ZFS
+ZFS=0
+
+ZFS_BASE_NAME=''
+
+ZFS_SIZE='5G'
+
 if [ -f /etc/default/ana-lxc ] ; then
   . /etc/default/ana-lxc
 fi
@@ -93,6 +100,8 @@ for ARG in "$@"; do
     NET_IPADDRESSES="${ARG#--ipaddr=}"
   elif [ "$ARG" = '--lvm' ]; then
     LVM=1
+  elif [ "$ARG" = '--zfs' ]; then
+    ZFS=1
   elif [ "$ARG" = '--help' -o "$ARG" = '-h' ]; then
     show_help
     exit $?
@@ -193,6 +202,10 @@ EOF
       echo "${FS_UUID} /var/lib/lxc/${CT_HOSTNAME} ext4    noatime,nodiratime 0        0" >> /etc/fstab
       mkdir -p "/var/lib/lxc/${CT_HOSTNAME}"
       mount "/var/lib/lxc/${CT_HOSTNAME}"
+    elif [ $ZFS -ne 0 ]; then
+      zfs create ${ZFS_BASE_NAME}/vm-${CT_HOSTNAME}
+      zfs set mountpoint=/var/lib/lxc/${CT_HOSTNAME} ${ZFS_BASE_NAME}/vm-${CT_HOSTNAME}
+      zfs set quota="$ZFS_SIZE" ${ZFS_BASE_NAME}/vm-${CT_HOSTNAME}
     fi
 
     lxc-create --template=download \

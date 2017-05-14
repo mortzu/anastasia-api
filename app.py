@@ -160,6 +160,8 @@ if __name__ == '__main__':
     # add argument to parser
     parser.add_argument('--solusvm-hash', action = 'store', help = 'API hash')
     # add argument to parser
+    parser.add_argument('--port', action = 'store', help = 'Port for HTTP server', default = 65535)
+    # add argument to parser
     parser.add_argument('--enable-ssh-console', action = 'store_true', help = 'Enable SSH console with OpenVZ')
     """ parse arguments and store
         them to arguments dict """
@@ -177,6 +179,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Create Webserver
-    server = ThreadingHTTPServer(('::', 65535), clientHandler)
+    server = ThreadingHTTPServer(('::', int(CLI_ARGS.port)), clientHandler)
     # and run
     server.serve_forever()

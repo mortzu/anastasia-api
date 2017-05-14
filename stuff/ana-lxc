@@ -136,6 +136,10 @@ case "$1" in
       touch /etc/subuid
     fi
 
+    if [ "$SUBUID_START" = 1 ]; then
+      SUBUID_START=100000
+    fi
+
     SUBUID_END=$[${SUBUID_START}+65536]
 
     # Add sub UIDs to root
@@ -149,6 +153,10 @@ case "$1" in
       SUBGID_START=100000
 
       touch /etc/subgid
+    fi
+
+    if [ "$SUBGID_START" = 1 ]; then
+      SUBGID_START=100000
     fi
 
     SUBGID_END=$[${SUBGID_START}+65536]

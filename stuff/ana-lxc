@@ -285,16 +285,17 @@ EOF
     # Add container to containers hosts file
     echo "127.0.1.1 ${CT_HOSTNAME} ${CT_HOSTNAME_SHORT}" >> "${CT_DIR}/rootfs/etc/hosts"
 
-    cat > "${CT_DIR}/rootfs/etc/apt/sources.list" <<EOF
-deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ jessie main non-free contrib
-deb-src http://ftp.de.debian.org/debian/ jessie main non-free contrib
+    if [ "$DIST" = 'debian' -a "$RELEASE" = 'stretch' ]; then
+      cat > "${CT_DIR}/rootfs/etc/apt/sources.list" <<EOF
+deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ stretch main non-free contrib
+deb-src http://ftp.de.debian.org/debian/ stretch main non-free contrib
 
-deb [arch=${CT_ARCH}] http://security.debian.org/ jessie/updates main contrib non-free
-deb-src http://security.debian.org/ jessie/updates main contrib non-free
+deb [arch=${CT_ARCH}] http://security.debian.org/ stretch/updates main contrib non-free
+deb-src http://security.debian.org/ stretch/updates main contrib non-free
 
-# jessie-updates, previously known as 'volatile'
-deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ jessie-updates main contrib non-free
-deb-src http://ftp.de.debian.org/debian/ jessie-updates main contrib non-free
+# stretch-updates, previously known as 'volatile'
+deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ stretch-updates main contrib non-free
+deb-src http://ftp.de.debian.org/debian/ stretch-updates main contrib non-free
 EOF
 
     # Prepare chroot
@@ -308,7 +309,7 @@ EOF
 
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get update"
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends dist-upgrade"
-    lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends install resolvconf ssh python cron sysvinit-core"
+    lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends install resolvconf ssh python cron"
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --purge autoremove"
 
     for CT_DEV in null random urandom; do

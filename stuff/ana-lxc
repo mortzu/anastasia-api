@@ -46,6 +46,8 @@ function show_help() {
 }
 
 # Set defaults
+CT_DIST='debian'
+CT_RELEASE='stretch'
 CT_ARCH='amd64'
 CT_HOSTNAME=''
 CT_MEMORY=128
@@ -86,10 +88,14 @@ fi
 
 # parse arguments
 for ARG in "$@"; do
-  if [[ "$ARG" =~ ^--hostname= ]]; then
+  if [[ "$ARG" =~ ^--dist= ]]; then
+    CT_DIST="${ARG#--dist=}"
+  elif [[ "$ARG" =~ ^--hostname= ]]; then
     CT_HOSTNAME="${ARG#--hostname=}"
   elif [[ "$ARG" =~ ^--memory= ]]; then
     CT_MEMORY="${ARG#--memory=}"
+  elif [[ "$ARG" =~ ^--release= ]]; then
+    CT_RELEASE="${ARG#--release=}"
   elif [[ "$ARG" =~ ^--swap= ]]; then
     CT_SWAP="${ARG#--swap=}"
   elif [[ "$ARG" =~ ^--nameservers= ]]; then
@@ -218,8 +224,8 @@ EOF
 
     lxc-create --template=download \
                --name="$CT_HOSTNAME" -- \
-               --dist debian \
-               --release jessie \
+               --dist "$CT_DIST" \
+               --release "$CT_RELEASE" \
                --arch $CT_ARCH
 
     # Container directory
@@ -293,18 +299,32 @@ EOF
     # Add container to containers hosts file
     echo "127.0.1.1 ${CT_HOSTNAME} ${CT_HOSTNAME_SHORT}" >> "${CT_DIR}/rootfs/etc/hosts"
 
-    if [ "$DIST" = 'debian' -a "$RELEASE" = 'stretch' ]; then
+    if [ "$CT_DIST" = 'debian' ]; then
       cat > "${CT_DIR}/rootfs/etc/apt/sources.list" <<EOF
-deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ stretch main non-free contrib
-deb-src http://ftp.de.debian.org/debian/ stretch main non-free contrib
+deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ ${CT_RELEASE} main non-free contrib
+deb-src http://ftp.de.debian.org/debian/ ${CT_RELEASE} main non-free contrib
 
-deb [arch=${CT_ARCH}] http://security.debian.org/ stretch/updates main contrib non-free
-deb-src http://security.debian.org/ stretch/updates main contrib non-free
+deb [arch=${CT_ARCH}] http://security.debian.org/ ${CT_RELEASE}/updates main contrib non-free
+deb-src http://security.debian.org/ ${CT_RELEASE}/updates main contrib non-free
 
-# stretch-updates, previously known as 'volatile'
-deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ stretch-updates main contrib non-free
-deb-src http://ftp.de.debian.org/debian/ stretch-updates main contrib non-free
+# ${CT_RELEASE}-updates, previously known as 'volatile'
+deb [arch=${CT_ARCH}] http://ftp.de.debian.org/debian/ ${CT_RELEASE}-updates main contrib non-free
+deb-src http://ftp.de.debian.org/debian/ ${CT_RELEASE}-updates main contrib non-free
 EOF
+    elif [ "$DIST" = 'ubuntu' -a "$RELEASE" = 'xenial' ]; then
+      cat > "${CT_DIR}/rootfs/etc/apt/sources.list" <<EOF
+deb http://de.archive.ubuntu.com/ubuntu/ xenial main restricted
+deb http://de.archive.ubuntu.com/ubuntu/ xenial-updates main restricted
+deb http://de.archive.ubuntu.com/ubuntu/ xenial universe
+deb http://de.archive.ubuntu.com/ubuntu/ xenial-updates universe
+deb http://de.archive.ubuntu.com/ubuntu/ xenial multiverse
+deb http://de.archive.ubuntu.com/ubuntu/ xenial-updates multiverse
+deb http://de.archive.ubuntu.com/ubuntu/ xenial-backports main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu xenial-security main restricted
+deb http://security.ubuntu.com/ubuntu xenial-security universe
+deb http://security.ubuntu.com/ubuntu xenial-security multiverse
+EOF
+    fi
 
     # Prepare chroot
     echo 'exit 101' > "${CT_DIR}/rootfs/usr/sbin/policy-rc.d"
@@ -318,6 +338,11 @@ EOF
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get update"
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends dist-upgrade"
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends install resolvconf ssh python cron"
+
+    if [ "$CT_DIST" = 'debian' -a "$CT_RELEASE" = 'jessie' ]; then
+      lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --no-install-recommends install sysvinit-core"
+    fi
+
     lxc-usernsexec -m b:0:${SUBUID_START}:65536 -- /usr/sbin/chroot "${CT_DIR}/rootfs" /bin/bash -c "PATH=/sbin:/usr/sbin:/bin:/usr/bin apt-get -y --purge autoremove"
 
     for CT_DEV in null random urandom; do

@@ -16,7 +16,7 @@ class LXC:
         result = {}
 
         for container in glob.glob(self.container_path + '*/config'):
-            domain_name = os.path.basename(container.rstrip('/config'))
+            domain_name = os.path.basename(container.replace('/config', ''))
             result[domain_name] = {}
             result[domain_name]['id'] = 0
             result[domain_name]['vcpu'] = 0

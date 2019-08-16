@@ -47,7 +47,7 @@ function show_help() {
 
 # Set defaults
 CT_DIST='debian'
-CT_RELEASE='stretch'
+CT_RELEASE='buster'
 CT_ARCH='amd64'
 CT_HOSTNAME=''
 CT_MEMORY=128
@@ -172,8 +172,8 @@ case "$1" in
 
     # Write user/group ID ranges to config file
     cat >"/etc/lxc/default.conf" <<EOF
-lxc.id_map = u 0 ${SUBUID_START} 65536
-lxc.id_map = g 0 ${SUBGID_START} 65536
+lxc.idmap = u 0 ${SUBUID_START} 65536
+lxc.idmap = g 0 ${SUBGID_START} 65536
 EOF
 
     # Create container

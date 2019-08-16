@@ -244,13 +244,12 @@ lxc.cgroup.memory.memsw.limit_in_bytes = $[ $CT_SWAP * 1024 * 1024 ]
 lxc.mount.entry = /dev/net dev/net none bind,create=dir
 
 lxc.mount.auto = cgroup
-lxc.kmsg = 0
 lxc.autodev = 1
 
 lxc.start.auto = 1
 lxc.start.delay = 10
 
-lxc.aa_allow_incomplete = 1
+lxc.apparmor.allow_incomplete = 1
 EOF
 
     ETH_COUNTER=0
@@ -263,10 +262,10 @@ EOF
 
       cat >> "${CT_DIR}/config" <<EOF
 
-lxc.network.type = veth
-lxc.network.flags = up
-lxc.network.link = ${IFACE_BRIDGE}
-lxc.network.hwaddr = ${IFACE_MACADDRESS}
+lxc.net.${ETH_COUNTER}.type = veth
+lxc.net.${ETH_COUNTER}.flags = up
+lxc.net.${ETH_COUNTER}.link = ${IFACE_BRIDGE}
+lxc.net.${ETH_COUNTER}.hwaddr = ${IFACE_MACADDRESS}
 EOF
 
       if [ $ETH_COUNTER -ne 0 ]; then

@@ -226,7 +226,8 @@ EOF
                --name="$CT_HOSTNAME" -- \
                --dist "$CT_DIST" \
                --release "$CT_RELEASE" \
-               --arch $CT_ARCH
+               --arch $CT_ARCH \
+               --no-validate
 
     # Container directory
     CT_DIR="/var/lib/lxc/${CT_HOSTNAME}"
